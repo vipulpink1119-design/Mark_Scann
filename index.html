@@ -1,287 +1,347 @@
 <!DOCTYPE html>
 <html lang="gu">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>લેન્ડસ્કેપ માર્ક્સ સ્કેનર</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            margin: 0; padding: 0; background-color: black;
-            overflow: hidden; color: white; font-family: Arial, sans-serif;
-        }
-        #scannerUI {
-            position: fixed; top: 0; left: 0;
-            width: 100vw; height: 100vh; z-index: 1;
-        }
-        #videoElement {
-            width: 100%; height: 100%; object-fit: cover;
-        }
-        .target-box {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 92%;
-            height: 22%;
-            border: 4px solid #ff3b30;
-            border-radius: 8px;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65);
-            z-index: 2;
-        }
-        .grid-lines {
-            display: flex; height: 100%; width: 100%;
-        }
-        .grid-lines div {
-            flex: 1;
-            border-right: 2.5px solid #ff3b30;
-        }
-        .grid-lines div:last-child { border: none; }
-        .top-bar {
-            position: absolute; top: 15px; left: 0; width: 100%;
-            z-index: 5; text-align: center; text-shadow: 2px 2px 4px black;
-        }
-        .controls {
-            position: absolute; bottom: 25px; left: 0; width: 100%;
-            z-index: 5; display: flex; justify-content: center; gap: 15px;
-        }
-        .btn-custom {
-            padding: 12px 30px; font-size: 1.2rem; border-radius: 30px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5); font-weight: bold;
-        }
-        #previewArea {
-            display: none; padding: 20px; z-index: 10;
-            position: relative; background: #f8f9fa;
-            height: 100vh; color: black; overflow-y: auto;
-        }
-        .cropped-img {
-            border: 3px solid #ff3b30; width: 100%;
-            max-width: 800px; margin: 15px 0; border-radius: 5px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>માર્ક્સ સ્કેનર</title>
+<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background:#111; color:#fff; font-family:Arial,sans-serif; height:100dvh; overflow:hidden; display:flex; flex-direction:column; }
 
-        /* Loading overlay */
-        #loadingOverlay {
-            display: none;
-            position: fixed; top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.8);
-            z-index: 999;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            color: white;
-            font-size: 1.3rem;
-        }
-        #loadingOverlay.show { display: flex; }
-        .spinner {
-            width: 60px; height: 60px;
-            border: 6px solid #ffffff44;
-            border-top-color: #fff;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 20px;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
+.screen { display:none; width:100%; height:100dvh; }
+.screen.active { display:flex; flex-direction:column; }
 
-        /* Marks result table */
-        #marksTable {
-            display: none;
-            margin-top: 20px;
-        }
-        .marks-cell {
-            width: 60px; height: 50px;
-            font-size: 1.4rem; font-weight: bold;
-            text-align: center; border: 2px solid #dee2e6;
-            border-radius: 6px;
-        }
-    </style>
+/* HOME */
+#s-home { justify-content:center; align-items:center; gap:20px; background:#1a1a2e; }
+#s-home h1 { font-size:1.6rem; color:#e0e0e0; text-align:center; }
+#s-home p  { color:#999; font-size:.9rem; text-align:center; padding:0 20px; }
+.big-btn { padding:16px 40px; font-size:1.2rem; border:none; border-radius:50px; cursor:pointer; font-weight:bold; }
+.btn-start { background:#f0a500; color:#000; }
+.btn-sheet { background:#34a853; color:#fff; font-size:.95rem; padding:12px 30px; }
+
+/* BARCODE SCREEN */
+#s-barcode { position:relative; background:#000; }
+#barcode-video-wrap { flex:1; position:relative; overflow:hidden; }
+#barcode-video-wrap video, #barcode-video-wrap canvas { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
+.barcode-overlay { position:absolute; top:50%; left:50%; transform:translate(-50%,-60%); width:80%; max-width:340px; height:90px; border:3px solid #f0a500; border-radius:10px; box-shadow:0 0 0 9999px rgba(0,0,0,.55); z-index:5; pointer-events:none; }
+.scan-line { position:absolute; left:4px; right:4px; height:2px; background:#f0a500; animation:scanmove 1.5s linear infinite; z-index:6; }
+@keyframes scanmove { 0%{top:8px} 50%{top:calc(100% - 10px)} 100%{top:8px} }
+.barcode-info { position:absolute; bottom:14px; width:100%; text-align:center; z-index:10; }
+.barcode-info p { font-size:.9rem; color:#ddd; margin-bottom:8px; }
+.btn-manual { background:rgba(255,255,255,.15); border:1px solid #fff; color:#fff; padding:8px 22px; border-radius:30px; font-size:.85rem; cursor:pointer; }
+
+/* MARKS CAMERA */
+#s-marks { position:relative; background:#000; }
+#marks-video-wrap { flex:1; position:relative; overflow:hidden; }
+#marks-video-wrap video { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
+.uid-badge { position:absolute; top:12px; left:12px; background:rgba(0,0,0,.7); border:1.5px solid #f0a500; border-radius:20px; padding:4px 14px; font-size:.85rem; color:#f0a500; z-index:10; }
+.marks-target { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:94%; height:28%; border:3px solid #ff3b30; border-radius:8px; box-shadow:0 0 0 9999px rgba(0,0,0,.6); z-index:5; pointer-events:none; }
+.marks-grid { display:flex; height:100%; }
+.marks-grid div { flex:1; border-right:1.5px solid rgba(255,59,48,.6); }
+.marks-grid div:last-child { border:none; }
+.marks-hint { position:absolute; top:12px; width:100%; text-align:center; z-index:10; text-shadow:1px 1px 4px #000; }
+.marks-hint h5 { font-size:.95rem; color:#fff; }
+.marks-hint small { font-size:.75rem; color:#ccc; }
+.marks-controls { position:absolute; bottom:18px; width:100%; display:flex; justify-content:center; gap:14px; z-index:10; }
+.btn-capture { background:#ff3b30; border:none; color:#fff; padding:14px 38px; border-radius:50px; font-size:1.1rem; font-weight:bold; cursor:pointer; }
+.btn-retake  { background:rgba(255,255,255,.18); border:1.5px solid #fff; color:#fff; padding:14px 22px; border-radius:50px; font-size:.95rem; cursor:pointer; }
+
+/* VERIFY */
+#s-verify { background:#f8f9fa; color:#000; overflow-y:auto; align-items:center; padding:16px; }
+#s-verify h4 { font-size:1.1rem; color:#333; margin-bottom:4px; }
+.preview-img { width:100%; max-width:700px; border:2px solid #ff3b30; border-radius:8px; margin:10px 0; }
+.marks-edit-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; width:100%; max-width:500px; margin:10px 0; }
+.mark-inp-wrap { display:flex; flex-direction:column; align-items:center; }
+.mark-inp-wrap label { font-size:.7rem; color:#666; margin-bottom:2px; }
+.mark-inp { width:100%; height:44px; font-size:1.1rem; font-weight:bold; text-align:center; border:2px solid #ccc; border-radius:8px; background:#fff; }
+.mark-inp:focus { border-color:#1a73e8; outline:none; }
+.mark-inp.total-inp { border-color:#34a853; background:#f0fff4; }
+.uid-show { font-size:1rem; color:#1a73e8; font-weight:bold; margin-bottom:6px; }
+.action-row { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; justify-content:center; width:100%; max-width:500px; }
+.btn-save   { background:#1a73e8; color:#fff; border:none; padding:14px 0; border-radius:50px; font-size:1rem; font-weight:bold; cursor:pointer; flex:1; min-width:140px; }
+.btn-rescan { background:#fff; color:#333; border:2px solid #ccc; padding:14px 0; border-radius:50px; font-size:.95rem; cursor:pointer; flex:1; min-width:120px; }
+
+/* SPINNER */
+#spinner { display:none; position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:999; justify-content:center; align-items:center; flex-direction:column; color:#fff; font-size:1.1rem; gap:18px; }
+#spinner.show { display:flex; }
+.spin-circle { width:56px; height:56px; border:5px solid #ffffff33; border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* TOAST */
+#toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:12px 26px; border-radius:30px; font-size:.95rem; z-index:1000; opacity:0; transition:opacity .3s; pointer-events:none; white-space:nowrap; }
+#toast.show { opacity:1; }
+#toast.green { background:#34a853; }
+#toast.red   { background:#d93025; }
+
+/* MANUAL MODAL */
+#manualModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:900; justify-content:center; align-items:center; }
+#manualModal.show { display:flex; }
+.modal-box { background:#1a1a2e; border-radius:16px; padding:28px 24px; width:88%; max-width:340px; text-align:center; }
+.modal-box h4 { color:#f0a500; margin-bottom:14px; }
+.modal-box input { width:100%; padding:12px; font-size:1.2rem; border-radius:10px; border:2px solid #f0a500; background:#111; color:#fff; text-align:center; margin-bottom:14px; }
+.modal-box .btn-ok     { background:#f0a500; color:#000; border:none; padding:12px 32px; border-radius:30px; font-size:1rem; font-weight:bold; cursor:pointer; margin-right:8px; }
+.modal-box .btn-cancel { background:transparent; color:#aaa; border:1px solid #555; padding:12px 22px; border-radius:30px; font-size:.95rem; cursor:pointer; }
+canvas#marksCanvas { display:none; }
+</style>
 </head>
 <body>
 
-<!-- Loading Overlay -->
-<div id="loadingOverlay">
-    <div class="spinner"></div>
-    <div>AI ડેટા વાંચી રહ્યું છે...</div>
-    <small style="margin-top:8px; color:#ccc;">કૃપા કરી રાહ જુઓ</small>
+<div id="spinner"><div class="spin-circle"></div><span id="spinMsg">AI વાંચી રહ્યું છે...</span></div>
+<div id="toast"></div>
+
+<div id="manualModal">
+  <div class="modal-box">
+    <h4>Student UID દાખલ કરો</h4>
+    <input id="manualUID" type="number" placeholder="e.g. 10105" inputmode="numeric">
+    <br>
+    <button class="btn-ok" onclick="confirmManualUID()">ઓકે</button>
+    <button class="btn-cancel" onclick="closeModal()">રદ</button>
+  </div>
 </div>
 
-<!-- કેમેરા સ્ક્રીન -->
-<div id="scannerUI">
-    <div class="top-bar">
-        <h4 class="fw-bold mb-0">મોબાઈલને આડો (Landscape) પકડો</h4>
-        <small>લાલ બોક્સમાં માર્ક્સ સેટ કરો</small>
-    </div>
-
-    <video id="videoElement" autoplay playsinline></video>
-
-    <div class="target-box" id="targetBox">
-        <div class="grid-lines">
-            <div></div><div></div><div></div><div></div><div></div>
-            <div></div><div></div><div></div><div></div><div></div>
-            <div></div><div></div><div></div><div></div>
-        </div>
-    </div>
-
-    <div class="controls">
-        <button class="btn btn-warning btn-custom" id="startBtn" onclick="startCamera()">
-            📷 કેમેરા ઓન
-        </button>
-        <button class="btn btn-success btn-custom" id="captureBtn" onclick="captureAndCrop()" disabled>
-            📸 સ્કેન કરો
-        </button>
-    </div>
+<!-- SCREEN 1: HOME -->
+<div id="s-home" class="screen active">
+  <h1>📋 માર્ક્સ સ્કેનર</h1>
+  <p>સ્ટીકર ઉપરનો બારકોડ સ્કેન કરો,<br>પછી માર્ક્સ ફોટો લો — ડેટા Sheet માં!</p>
+  <button class="big-btn btn-start" onclick="goTo('s-barcode'); startBarcodeScanner()">📷 સ્કેન શરૂ કરો</button>
+  <button class="big-btn btn-sheet" onclick="openSheet()">📊 Google Sheet ખોલો</button>
 </div>
 
-<!-- છુપો કેનવાસ -->
-<canvas id="hiddenCanvas" style="display:none;"></canvas>
+<!-- SCREEN 2: BARCODE -->
+<div id="s-barcode" class="screen">
+  <div id="barcode-video-wrap">
+    <div class="barcode-overlay"><div class="scan-line"></div></div>
+  </div>
+  <div class="barcode-info">
+    <p>સ્ટીકરનો <strong>બારકોડ</strong> પીળા બોક્સમાં રાખો</p>
+    <button class="btn-manual" onclick="showManual()">UID જાતે દાખલ કરો</button>
+  </div>
+</div>
 
-<!-- પરિણામ સ્ક્રીન -->
-<div id="previewArea" class="text-center">
-    <h3 class="text-primary fw-bold mt-3">📷 ક્રોપ થયેલો ફોટો:</h3>
-    <img id="croppedResult" class="cropped-img" src="" alt="Cropped Marks">
-
-    <!-- Marks Table -->
-    <div id="marksTable">
-        <h4 class="text-success fw-bold">✅ AI દ્વારા વંચાયેલા માર્ક્સ:</h4>
-        <div class="d-flex flex-wrap justify-content-center gap-2 mb-3" id="marksCells"></div>
-        <p class="text-muted small">ખોટા માર્ક્સ હોય તો ટેપ કરીને સુધારો</p>
+<!-- SCREEN 3: MARKS CAMERA -->
+<div id="s-marks" class="screen">
+  <div id="marks-video-wrap">
+    <video id="marksVideo" autoplay playsinline></video>
+    <div class="uid-badge">UID: <span id="uidDisplay">-</span></div>
+    <div class="marks-hint">
+      <h5>ફોન <strong>આડો (Landscape)</strong> રાખો</h5>
+      <small>લાલ બોક્સ → Q1 થી Q13 + TOTAL ખાના</small>
     </div>
-
-    <!-- Error message -->
-    <div id="errorMsg" style="display:none;" class="alert alert-danger mt-3"></div>
-
-    <div class="mt-4 d-flex justify-content-center gap-3 flex-wrap">
-        <button class="btn btn-secondary btn-lg" onclick="location.reload()">🔄 ફરીથી સ્કેન</button>
-        <button class="btn btn-primary btn-lg px-5" id="sendBtn" onclick="sendToSheet()" disabled>
-            📤 ડેશબોર્ડમાં મોકલો
-        </button>
+    <div class="marks-target">
+      <div class="marks-grid">
+        <div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+      </div>
     </div>
+    <div class="marks-controls">
+      <button class="btn-retake"  onclick="goHome()">← પાછા</button>
+      <button class="btn-capture" onclick="captureMarks()">📸 Capture</button>
+    </div>
+  </div>
+</div>
+<canvas id="marksCanvas"></canvas>
+
+<!-- SCREEN 4: VERIFY -->
+<div id="s-verify" class="screen">
+  <h4>✅ AI દ્વારા વંચાયેલ ડેટા</h4>
+  <div class="uid-show">Student UID: <span id="verifyUID">-</span></div>
+  <img id="previewImg" class="preview-img" src="" alt="Preview">
+  <div class="marks-edit-grid" id="marksGrid"></div>
+  <div class="action-row">
+    <button class="btn-rescan" onclick="rescan()">🔄 ફરીથી સ્કેન</button>
+    <button class="btn-save"   onclick="saveToSheet()">💾 Sheet માં Save</button>
+  </div>
 </div>
 
 <script>
-    // ============================================================
-    // ⚙️ અહી તમારી GAS Web App URL પેસ્ટ કરો
-    // ============================================================
-    const GAS_URL = "અહી_તમારી_GAS_WEB_APP_URL_પેસ્ટ_કરો";
-    // ============================================================
+// ── CONFIG ──────────────────────────────────────────────
+const GAS_URL   = "https://script.google.com/macros/s/AKfycbyTmyycCpn_8OpyrFI50rtnFSITpF8qGkvrhhsVaI85eGTHc5ZyfwhCEMZmKRWyoubj/exec";
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/1ExZ5ipOcpvE8nUWYVJWXtF0uvJn6TN98MJT_32JL9RE/edit?usp=drivesdk";
+const Q_LABELS  = ["Q1","Q2","Q3","Q4","Q5","Q6","Q7","Q8","Q9","Q10","Q11","Q12","Q13","TOTAL"];
 
-    const video   = document.getElementById('videoElement');
-    const canvas  = document.getElementById('hiddenCanvas');
-    const targetBox = document.getElementById('targetBox');
-    let finalImage = null;
-    let marksArray = [];
+// ── STATE ────────────────────────────────────────────────
+let currentUID    = null;
+let marksStream   = null;
+let croppedB64    = null;
+let detectedMarks = [];
 
-    // ----- Camera Start -----
-    async function startCamera() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
-            });
-            video.srcObject = stream;
-            video.onloadedmetadata = () => {
-                document.getElementById('captureBtn').disabled = false;
-                document.getElementById('startBtn').style.display = 'none';
-            };
-        } catch (err) {
-            alert("કેમેરા ચાલુ કરવામાં ભૂલ:\n" + err.message +
-                  "\n\nBrowser Settings > Camera > Allow કરો");
-        }
+// ── NAVIGATION ───────────────────────────────────────────
+function goTo(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function goHome() { stopMarksCamera(); Quagga.stop(); goTo('s-home'); }
+function openSheet() { window.open(SHEET_URL, '_blank'); }
+
+// ── SCREEN 2: BARCODE ────────────────────────────────────
+function startBarcodeScanner() {
+  Quagga.init({
+    inputStream: {
+      type: "LiveStream",
+      target: document.getElementById('barcode-video-wrap'),
+      constraints: { facingMode:"environment", width:{ideal:1280}, height:{ideal:720} }
+    },
+    decoder: { readers: ["code_128_reader","ean_reader"] },
+    locate: true
+  }, err => {
+    if (err) { showToast("Camera Error: " + err.message,'red'); return; }
+    Quagga.start();
+  });
+  Quagga.onDetected(data => {
+    const code = data.codeResult.code;
+    if (!code) return;
+    Quagga.stop();
+    currentUID = code;
+    showToast("✅ UID: " + code,'green');
+    setTimeout(() => startMarksScan(), 600);
+  });
+}
+
+// ── MANUAL UID ───────────────────────────────────────────
+function showManual()  { document.getElementById('manualModal').classList.add('show'); document.getElementById('manualUID').value=''; document.getElementById('manualUID').focus(); }
+function closeModal()  { document.getElementById('manualModal').classList.remove('show'); }
+function confirmManualUID() {
+  const v = document.getElementById('manualUID').value.trim();
+  if (!v) { showToast("UID ખાલી!","red"); return; }
+  Quagga.stop();
+  currentUID = v;
+  closeModal();
+  showToast("UID: " + v,'green');
+  setTimeout(() => startMarksScan(), 500);
+}
+
+// ── SCREEN 3: MARKS CAMERA ───────────────────────────────
+async function startMarksScan() {
+  goTo('s-marks');
+  document.getElementById('uidDisplay').textContent = currentUID;
+  try {
+    marksStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode:"environment", width:{ideal:1920}, height:{ideal:1080} }
+    });
+    document.getElementById('marksVideo').srcObject = marksStream;
+  } catch(e) { showToast("Camera Error: " + e.message,'red'); }
+}
+function stopMarksCamera() {
+  if (marksStream) { marksStream.getTracks().forEach(t => t.stop()); marksStream = null; }
+}
+
+function captureMarks() {
+  const video  = document.getElementById('marksVideo');
+  const canvas = document.getElementById('marksCanvas');
+  const target = document.querySelector('.marks-target');
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video,0,0);
+
+  const vR = video.getBoundingClientRect();
+  const bR = target.getBoundingClientRect();
+  const sx = canvas.width  / vR.width;
+  const sy = canvas.height / vR.height;
+  const cx = (bR.left - vR.left) * sx;
+  const cy = (bR.top  - vR.top)  * sy;
+  const cw = bR.width  * sx;
+  const ch = bR.height * sy;
+
+  const crop = document.createElement('canvas');
+  crop.width = cw; crop.height = ch;
+  crop.getContext('2d').drawImage(canvas, cx,cy,cw,ch, 0,0,cw,ch);
+  croppedB64 = crop.toDataURL('image/jpeg', 0.95);
+  stopMarksCamera();
+  sendForOCR(croppedB64);
+}
+
+// ── OCR via GAS ──────────────────────────────────────────
+function sendForOCR(b64) {
+  showSpinner("AI વાંચી રહ્યું છે...");
+  fetch(GAS_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action:'ocr', image:b64, uid:currentUID })
+  })
+  .then(r => r.json())
+  .then(res => {
+    hideSpinner();
+    if (res.status === 'success') {
+      detectedMarks = parseMarks(res.text);
+      showVerify();
+    } else {
+      showToast("Error: " + res.message,'red');
+      rescan();
     }
+  })
+  .catch(e => { hideSpinner(); showToast("Network Error: " + e.message,'red'); rescan(); });
+}
 
-    // ----- Capture & Crop -----
-    function captureAndCrop() {
-        canvas.width  = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+function parseMarks(text) {
+  let nums = (text.match(/\d+/g) || []).map(Number);
+  while (nums.length < 14) nums.push('');
+  return nums.slice(0,14);
+}
 
-        const videoRect = video.getBoundingClientRect();
-        const boxRect   = targetBox.getBoundingClientRect();
+// ── SCREEN 4: VERIFY ─────────────────────────────────────
+function showVerify() {
+  goTo('s-verify');
+  document.getElementById('verifyUID').textContent = currentUID;
+  document.getElementById('previewImg').src = croppedB64;
+  const grid = document.getElementById('marksGrid');
+  grid.innerHTML = '';
+  Q_LABELS.forEach((lbl,i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'mark-inp-wrap';
+    const label = document.createElement('label');
+    label.textContent = lbl;
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.inputMode = 'numeric';
+    inp.className = 'mark-inp' + (lbl==='TOTAL' ? ' total-inp' : '');
+    inp.id = 'mk_' + i;
+    inp.value = (detectedMarks[i] !== undefined && detectedMarks[i] !== '') ? detectedMarks[i] : '';
+    if (lbl !== 'TOTAL') inp.addEventListener('input', autoTotal);
+    wrap.appendChild(label); wrap.appendChild(inp);
+    grid.appendChild(wrap);
+  });
+  autoTotal();
+}
 
-        const scaleX = canvas.width  / videoRect.width;
-        const scaleY = canvas.height / videoRect.height;
+function autoTotal() {
+  let sum = 0;
+  for (let i = 0; i < 13; i++) {
+    sum += parseFloat(document.getElementById('mk_'+i)?.value) || 0;
+  }
+  const tot = document.getElementById('mk_13');
+  if (tot && tot !== document.activeElement) tot.value = sum;
+}
 
-        const cropX = (boxRect.left - videoRect.left) * scaleX;
-        const cropY = (boxRect.top  - videoRect.top)  * scaleY;
-        const cropW = boxRect.width  * scaleX;
-        const cropH = boxRect.height * scaleY;
+function rescan() { stopMarksCamera(); startMarksScan(); }
 
-        const cropCanvas = document.createElement('canvas');
-        cropCanvas.width  = cropW;
-        cropCanvas.height = cropH;
-        cropCanvas.getContext('2d').drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+// ── SAVE TO SHEET ────────────────────────────────────────
+function saveToSheet() {
+  const marks = Q_LABELS.map((_,i) => document.getElementById('mk_'+i)?.value || '');
+  showSpinner("Sheet માં Save...");
+  fetch(GAS_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action:'save', uid:currentUID, marks:marks })
+  })
+  .then(r => r.json())
+  .then(res => {
+    hideSpinner();
+    if (res.status === 'success') {
+      showToast("✅ Saved! UID: " + currentUID,'green');
+      setTimeout(() => { currentUID=null; goTo('s-barcode'); startBarcodeScanner(); }, 1400);
+    } else { showToast("Save Error: " + res.message,'red'); }
+  })
+  .catch(e => { hideSpinner(); showToast("Network Error: " + e.message,'red'); });
+}
 
-        finalImage = cropCanvas.toDataURL('image/jpeg', 1.0);
-
-        document.getElementById('croppedResult').src = finalImage;
-        document.getElementById('scannerUI').style.display = 'none';
-        document.getElementById('previewArea').style.display = 'block';
-
-        // Camera stream બંધ
-        if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
-
-        // Auto OCR
-        sendImageForOCR(finalImage);
-    }
-
-    // ----- OCR via GAS doPost() -----
-    function sendImageForOCR(base64Img) {
-        document.getElementById('loadingOverlay').classList.add('show');
-        document.getElementById('errorMsg').style.display = 'none';
-        document.getElementById('marksTable').style.display = 'none';
-
-        fetch(GAS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: base64Img })
-        })
-        .then(r => r.json())
-        .then(result => {
-            document.getElementById('loadingOverlay').classList.remove('show');
-            if (result.status === "success") {
-                marksArray = result.text.match(/\d+/g) || [];
-                showMarksTable(marksArray);
-            } else {
-                showError("GAS Error: " + result.message);
-            }
-        })
-        .catch(err => {
-            document.getElementById('loadingOverlay').classList.remove('show');
-            showError("ઇન્ટરનેટ અથવા GAS URL ભૂલ!\n" + err.message);
-        });
-    }
-
-    // ----- Editable Marks Table -----
-    function showMarksTable(arr) {
-        const cells = document.getElementById('marksCells');
-        cells.innerHTML = '';
-        arr.forEach((m, i) => {
-            const inp = document.createElement('input');
-            inp.type = 'number';
-            inp.value = m;
-            inp.className = 'marks-cell form-control';
-            inp.id = 'mark_' + i;
-            cells.appendChild(inp);
-        });
-        document.getElementById('marksTable').style.display = 'block';
-        document.getElementById('sendBtn').disabled = false;
-    }
-
-    function showError(msg) {
-        const el = document.getElementById('errorMsg');
-        el.textContent = msg;
-        el.style.display = 'block';
-    }
-
-    // ----- Send to Sheet (future) -----
-    function sendToSheet() {
-        const finalMarks = [];
-        marksArray.forEach((_, i) => {
-            finalMarks.push(document.getElementById('mark_' + i).value);
-        });
-        // અહી Sheet ને POST કરવાનો code ઉમેરી શકાય
-        alert("✅ માર્ક્સ:\n" + finalMarks.join(" | ") + "\n\n(Sheet integration next step)");
-    }
+// ── HELPERS ──────────────────────────────────────────────
+function showSpinner(msg) { document.getElementById('spinMsg').textContent = msg||'...'; document.getElementById('spinner').classList.add('show'); }
+function hideSpinner()    { document.getElementById('spinner').classList.remove('show'); }
+function showToast(msg,type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show '+(type||'');
+  setTimeout(() => { t.className=''; }, 2800);
+}
 </script>
-
 </body>
 </html>
